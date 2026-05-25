@@ -1,0 +1,39 @@
+# render.yaml – Infrastructure as Code for Render.com
+# Deploy by connecting your GitHub repo to Render and pointing to this file.
+
+services:
+  - type: web
+    name: taskflow-backend
+    env: python
+    region: oregon
+    plan: free          # upgrade to starter ($7/mo) for production
+    branch: main
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn wsgi:app --workers 2 --threads 4 --bind 0.0.0.0:$PORT --timeout 120"
+    healthCheckPath: /health
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: GMAIL_SENDER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
