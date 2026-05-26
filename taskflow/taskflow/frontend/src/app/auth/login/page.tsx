@@ -1,74 +1,106 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function LoginPage() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+  const apiUrl    = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hovered, setHovered] = useState(false);
 
-  // Animated particle background
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
+    let W = canvas.width  = window.innerWidth;
+    let H = canvas.height = window.innerHeight;
+    let frame = 0;
 
-    const particles: {
-      x: number; y: number; vx: number; vy: number;
-      size: number; opacity: number;
-    }[] = [];
+    const ribbons = Array.from({ length: 6 }, (_, i) => ({
+      offset: (i / 6) * Math.PI * 2,
+      speed:  0.003 + i * 0.001,
+      amp:    60 + i * 18,
+      y:      H * (0.25 + i * 0.1),
+      hue:    200 + i * 22,
+      alpha:  0.06 + i * 0.012,
+    }));
 
-    for (let i = 0; i < 60; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        size: Math.random() * 2 + 0.5,
-        opacity: Math.random() * 0.5 + 0.1,
-      });
-    }
+    const orbs = Array.from({ length: 12 }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: 80 + Math.random() * 180,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.2,
+      hue: 210 + Math.random() * 60,
+      alpha: 0.03 + Math.random() * 0.05,
+    }));
 
+    const gridSpacing = 48;
     let animId: number;
+
     function draw() {
       if (!ctx || !canvas) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach((p) => {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0 || p.x > canvas.width)  p.vx *= -1;
-        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+      ctx.clearRect(0, 0, W, H);
+      frame++;
+
+      ctx.fillStyle = "#050d1a";
+      ctx.fillRect(0, 0, W, H);
+
+      // Grid dots
+      const cols = Math.ceil(W / gridSpacing) + 1;
+      const rows = Math.ceil(H / gridSpacing) + 1;
+      ctx.fillStyle = "rgba(99,179,237,0.06)";
+      for (let c = 0; c < cols; c++) {
+        for (let r = 0; r < rows; r++) {
+          ctx.beginPath();
+          ctx.arc(c * gridSpacing, r * gridSpacing, 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Orbs
+      orbs.forEach((o) => {
+        o.x += o.vx; o.y += o.vy;
+        if (o.x < -o.r) o.x = W + o.r;
+        if (o.x > W + o.r) o.x = -o.r;
+        if (o.y < -o.r) o.y = H + o.r;
+        if (o.y > H + o.r) o.y = -o.r;
+        const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r);
+        g.addColorStop(0, `hsla(${o.hue},80%,60%,${o.alpha})`);
+        g.addColorStop(1, "transparent");
+        ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(99, 179, 237, ${p.opacity})`;
+        ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // Draw connections
-      particles.forEach((a, i) => {
-        particles.slice(i + 1).forEach((b) => {
-          const dx = a.x - b.x;
-          const dy = a.y - b.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.strokeStyle = `rgba(99, 179, 237, ${0.15 * (1 - dist / 120)})`;
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
-        });
+      // Ribbons
+      ribbons.forEach((rb) => {
+        const t = frame * rb.speed + rb.offset;
+        ctx.beginPath();
+        ctx.moveTo(0, rb.y);
+        for (let x = 0; x <= W; x += 4) {
+          const y = rb.y
+            + Math.sin(x * 0.008 + t) * rb.amp
+            + Math.sin(x * 0.003 + t * 0.7) * rb.amp * 0.4;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+        const wg = ctx.createLinearGradient(0, rb.y - rb.amp, 0, rb.y + rb.amp);
+        wg.addColorStop(0, `hsla(${rb.hue},70%,55%,0)`);
+        wg.addColorStop(0.5, `hsla(${rb.hue},70%,55%,${rb.alpha})`);
+        wg.addColorStop(1, `hsla(${rb.hue},70%,55%,0)`);
+        ctx.fillStyle = wg;
+        ctx.fill();
       });
+
       animId = requestAnimationFrame(draw);
     }
     draw();
 
     const resize = () => {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
+      W = canvas.width  = window.innerWidth;
+      H = canvas.height = window.innerHeight;
     };
     window.addEventListener("resize", resize);
     return () => {
@@ -77,434 +109,189 @@ export default function LoginPage() {
     };
   }, []);
 
+  const features = [
+    "Assign tasks to teammates instantly",
+    "Track progress with Kanban & Calendar views",
+    "Email notifications on every update",
+    "Analytics to measure team performance",
+  ];
+
   return (
-    <main className="login-page">
-      <canvas ref={canvasRef} className="login-canvas" />
+    <main style={s.root}>
+      <canvas ref={canvasRef} style={s.canvas} />
 
-      {/* Gradient orbs */}
-      <div className="orb orb-1" />
-      <div className="orb orb-2" />
-      <div className="orb orb-3" />
+      {/* ── Navbar ── */}
+      <nav style={s.navbar}>
+        <img
+          src="/logo.png"
+          alt="TaskFlow"
+          style={{ height: 160, width: "auto", objectFit: "contain" }}
+        />
+      </nav>
 
-      <div className="login-container">
-        {/* Left side — branding */}
-        <div className="login-left">
-          <div className="brand-mark">
-            <div className="brand-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
-                   stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 11l3 3L22 4"/>
-                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-              </svg>
-            </div>
-            <span className="brand-name">TaskFlow</span>
+      {/* ── Content grid ── */}
+      <div style={s.wrap}>
+
+        {/* ── Left ── */}
+        <div style={s.left}>
+
+          {/* Eyebrow tag */}
+          <div style={s.tag}>
+            <span style={s.tagDot} />
+            Task Management Platform
           </div>
 
-          <div className="hero-text">
-            <h1 className="hero-title">
-              Work smarter,<br />
-              <span className="hero-gradient">ship faster.</span>
-            </h1>
-            <p className="hero-subtitle">
-              The intelligent task platform that keeps your team
-              aligned, focused, and moving forward.
-            </p>
-          </div>
+          {/* Headline */}
+          <h1 style={s.h1}>
+            Built for teams<br />
+            that{" "}
+            <span style={s.grad}>actually ship.</span>
+          </h1>
 
-          <div className="feature-list">
-            {[
-              { icon: "⚡", text: "Real-time collaboration" },
-              { icon: "🎯", text: "Smart task prioritization" },
-              { icon: "📧", text: "Instant email notifications" },
-              { icon: "📊", text: "Beautiful analytics" },
-            ].map(({ icon, text }) => (
-              <div key={text} className="feature-item">
-                <span className="feature-icon">{icon}</span>
-                <span className="feature-text">{text}</span>
-              </div>
+          {/* Subline */}
+          <p style={s.sub}>
+            Assign, track, and close work without the overhead —
+            from solo sprints to cross-functional launches.
+          </p>
+
+          {/* Feature list — clean, no cards */}
+          <ul style={s.list}>
+            {features.map((f) => (
+              <li key={f} style={s.listItem}>
+                <span style={s.check}>
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                    <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.8"
+                          strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </span>
+                <span style={s.listText}>{f}</span>
+              </li>
             ))}
-          </div>
+          </ul>
 
-          {/* Social proof */}
-          <div className="social-proof">
-            <div className="avatars">
-              {["#f97316","#8b5cf6","#06b6d4","#10b981"].map((c, i) => (
-                <div key={i} className="avatar-bubble" style={{ background: c, zIndex: 4 - i }} />
-              ))}
+          {/* Horizontal divider + metrics — inline text, no boxes */}
+          <div style={s.metricsRow}>
+            <div style={s.metricItem}>
+              <span style={s.metricN}>98%</span>
+              <span style={s.metricL}>on-time delivery</span>
             </div>
-            <p className="social-text">
-              Join <strong>2,400+</strong> teams already using TaskFlow
-            </p>
-          </div>
-        </div>
-
-        {/* Right side — login card */}
-        <div className="login-right">
-          <div className="login-card">
-            <div className="card-header">
-              <h2 className="card-title">Welcome back</h2>
-              <p className="card-subtitle">Sign in to your workspace</p>
+            <div style={s.metricSep} />
+            <div style={s.metricItem}>
+              <span style={s.metricN}>3×</span>
+              <span style={s.metricL}>faster standup</span>
             </div>
-
-            <a href={`${apiUrl}/api/auth/google`} className="google-btn">
-              <GoogleIcon />
-              <span>Continue with Google</span>
-              <div className="btn-shimmer" />
-            </a>
-
-            <div className="divider">
-              <span className="divider-line" />
-              <span className="divider-text">Secure sign-in</span>
-              <span className="divider-line" />
+            <div style={s.metricSep} />
+            <div style={s.metricItem}>
+              <span style={s.metricN}>{"< 2s"}</span>
+              <span style={s.metricL}>page load</span>
             </div>
-
-            <div className="security-badges">
-              {[
-                { icon: "🔒", label: "SSL Encrypted" },
-                { icon: "🛡️", label: "OAuth 2.0" },
-                { icon: "✓",  label: "SOC 2 Ready" },
-              ].map(({ icon, label }) => (
-                <div key={label} className="security-badge">
-                  <span>{icon}</span>
-                  <span>{label}</span>
-                </div>
-              ))}
-            </div>
-
-            <p className="terms-text">
-              By continuing, you agree to our{" "}
-              <a href="/terms" className="terms-link">Terms</a>
-              {" "}and{" "}
-              <a href="/privacy" className="terms-link">Privacy Policy</a>
-            </p>
           </div>
         </div>
+
+        {/* ── Right ── */}
+        <div style={s.right}>
+          <div style={s.card}>
+            <div style={s.cardAccent} />
+            <div style={s.cardBody}>
+
+              <div style={s.cardHead}>
+                <p style={s.eyebrow}>Welcome back</p>
+                <h2 style={s.cardTitle}>Sign in to TaskFlow</h2>
+                <p style={s.cardSub}>
+                  Use your Google account to access your workspace
+                </p>
+              </div>
+
+              <a
+                href={`${apiUrl}/api/auth/google`}
+                style={{ ...s.gBtn, ...(hovered ? s.gBtnHover : {}) }}
+                onMouseEnter={() => setHovered(true)}
+                onMouseLeave={() => setHovered(false)}
+              >
+                <GoogleIcon />
+                <span style={{ position: "relative", zIndex: 1 }}>
+                  Continue with Google
+                </span>
+                <span style={s.sweep} />
+              </a>
+
+              <div style={s.divider}>
+                <span style={s.divLine} />
+                <span style={s.divText}>100% secure sign-in</span>
+                <span style={s.divLine} />
+              </div>
+
+              <div style={s.secRow}>
+                <SecBadge label="OAuth 2.0" />
+                <SecBadge label="SSL Encrypted" />
+                <SecBadge label="No password stored" />
+              </div>
+
+            </div>
+          </div>
+
+          <p style={s.tos}>
+            By signing in you agree to our{" "}
+            <a href="/terms" style={s.tosLink}>Terms of Service</a>
+            {" "}and{" "}
+            <a href="/privacy" style={s.tosLink}>Privacy Policy</a>
+          </p>
+        </div>
+
       </div>
 
-      <style jsx>{`
-        .login-page {
-          min-height: 100vh;
-          background: #020817;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-          position: relative;
-          padding: 20px;
-          font-family: 'Sora', sans-serif;
+      <style>{`
+        @keyframes sweep {
+          0%        { left: -100%; }
+          60%, 100% { left: 100%;  }
         }
-
-        .login-canvas {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
+        @keyframes rise {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0);    }
         }
-
-        .orb {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(80px);
-          pointer-events: none;
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
         }
-        .orb-1 {
-          width: 600px; height: 600px;
-          background: radial-gradient(circle, rgba(37,99,235,0.25), transparent 70%);
-          top: -200px; left: -200px;
-          animation: float1 8s ease-in-out infinite;
-        }
-        .orb-2 {
-          width: 500px; height: 500px;
-          background: radial-gradient(circle, rgba(124,58,237,0.2), transparent 70%);
-          bottom: -150px; right: -150px;
-          animation: float2 10s ease-in-out infinite;
-        }
-        .orb-3 {
-          width: 300px; height: 300px;
-          background: radial-gradient(circle, rgba(6,182,212,0.15), transparent 70%);
-          top: 50%; left: 50%;
-          animation: float3 12s ease-in-out infinite;
-        }
-
-        @keyframes float1 {
-          0%,100% { transform: translate(0,0) scale(1); }
-          50% { transform: translate(60px, 40px) scale(1.1); }
-        }
-        @keyframes float2 {
-          0%,100% { transform: translate(0,0) scale(1); }
-          50% { transform: translate(-40px,-60px) scale(0.9); }
-        }
-        @keyframes float3 {
-          0%,100% { transform: translate(-50%,-50%) scale(1); }
-          50% { transform: translate(-50%,-50%) scale(1.2); }
-        }
-
-        .login-container {
-          position: relative;
-          z-index: 10;
-          width: 100%;
-          max-width: 1100px;
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 60px;
-          align-items: center;
-        }
-
-        /* ── Left ── */
-        .login-left {
-          animation: slideInLeft 0.7s ease-out both;
-        }
-        @keyframes slideInLeft {
-          from { opacity:0; transform: translateX(-30px); }
-          to   { opacity:1; transform: translateX(0); }
-        }
-
-        .brand-mark {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 48px;
-        }
-        .brand-icon {
-          width: 52px; height: 52px;
-          background: linear-gradient(135deg, #2563eb, #7c3aed);
-          border-radius: 14px;
-          display: flex; align-items: center; justify-content: center;
-          box-shadow: 0 8px 32px rgba(37,99,235,0.4);
-        }
-        .brand-name {
-          font-size: 26px;
-          font-weight: 800;
-          color: #fff;
-          letter-spacing: -0.5px;
-        }
-
-        .hero-title {
-          font-size: clamp(36px, 5vw, 54px);
-          font-weight: 800;
-          color: #fff;
-          line-height: 1.1;
-          letter-spacing: -1px;
-          margin-bottom: 20px;
-        }
-        .hero-gradient {
-          background: linear-gradient(135deg, #60a5fa, #a78bfa, #34d399);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-        .hero-subtitle {
-          font-size: 17px;
-          color: #94a3b8;
-          line-height: 1.7;
-          margin-bottom: 40px;
-          max-width: 420px;
-        }
-
-        .feature-list {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-          margin-bottom: 40px;
-        }
-        .feature-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          animation: fadeInUp 0.5s ease-out both;
-        }
-        .feature-item:nth-child(1) { animation-delay: 0.1s; }
-        .feature-item:nth-child(2) { animation-delay: 0.2s; }
-        .feature-item:nth-child(3) { animation-delay: 0.3s; }
-        .feature-item:nth-child(4) { animation-delay: 0.4s; }
-
-        @keyframes fadeInUp {
-          from { opacity:0; transform: translateY(10px); }
-          to   { opacity:1; transform: translateY(0); }
-        }
-
-        .feature-icon {
-          width: 36px; height: 36px;
-          background: rgba(255,255,255,0.08);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 8px;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 16px;
-          flex-shrink: 0;
-        }
-        .feature-text {
-          color: #cbd5e1;
-          font-size: 15px;
-          font-weight: 500;
-        }
-
-        .social-proof {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-        }
-        .avatars {
-          display: flex;
-        }
-        .avatar-bubble {
-          width: 32px; height: 32px;
-          border-radius: 50%;
-          border: 2px solid #020817;
-          margin-left: -8px;
-        }
-        .avatar-bubble:first-child { margin-left: 0; }
-        .social-text {
-          color: #64748b;
-          font-size: 13px;
-        }
-        .social-text strong { color: #94a3b8; }
-
-        /* ── Right ── */
-        .login-right {
-          animation: slideInRight 0.7s ease-out both;
-        }
-        @keyframes slideInRight {
-          from { opacity:0; transform: translateX(30px); }
-          to   { opacity:1; transform: translateX(0); }
-        }
-
-        .login-card {
-          background: rgba(255,255,255,0.04);
-          backdrop-filter: blur(24px);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 24px;
-          padding: 48px 40px;
-          box-shadow: 0 32px 80px rgba(0,0,0,0.5),
-                      inset 0 1px 0 rgba(255,255,255,0.1);
-        }
-
-        .card-header {
-          text-align: center;
-          margin-bottom: 36px;
-        }
-        .card-title {
-          font-size: 28px;
-          font-weight: 700;
-          color: #fff;
-          margin-bottom: 8px;
-          letter-spacing: -0.5px;
-        }
-        .card-subtitle {
-          color: #64748b;
-          font-size: 15px;
-        }
-
-        .google-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          width: 100%;
-          padding: 14px 24px;
-          background: #fff;
-          color: #1e293b;
-          font-size: 15px;
-          font-weight: 600;
-          border-radius: 14px;
-          text-decoration: none;
-          position: relative;
-          overflow: hidden;
-          transition: all 0.2s ease;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        .google-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-        }
-        .google-btn:active { transform: translateY(0); }
-
-        .btn-shimmer {
-          position: absolute;
-          top: 0; left: -100%;
-          width: 100%; height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-          animation: shimmer 3s infinite;
-        }
-        @keyframes shimmer {
-          0% { left: -100%; }
-          50%,100% { left: 100%; }
-        }
-
-        .divider {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin: 28px 0;
-        }
-        .divider-line {
-          flex: 1;
-          height: 1px;
-          background: rgba(255,255,255,0.08);
-        }
-        .divider-text {
-          color: #475569;
-          font-size: 12px;
-          white-space: nowrap;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-
-        .security-badges {
-          display: flex;
-          justify-content: center;
-          gap: 16px;
-          margin-bottom: 28px;
-        }
-        .security-badge {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          color: #475569;
-          font-size: 12px;
-          font-weight: 500;
-        }
-
-        .terms-text {
-          text-align: center;
-          color: #475569;
-          font-size: 12px;
-          line-height: 1.6;
-        }
-        .terms-link {
-          color: #60a5fa;
-          text-decoration: none;
-        }
-        .terms-link:hover { text-decoration: underline; }
-
-        /* ── Mobile ── */
-        @media (max-width: 768px) {
-          .login-container {
-            grid-template-columns: 1fr;
-            gap: 32px;
+        @media (max-width: 800px) {
+          .wrap-grid {
+            grid-template-columns: 1fr !important;
+            padding: 16px 24px 48px !important;
           }
-          .login-left {
-            text-align: center;
-            order: 2;
-          }
-          .login-right { order: 1; }
-          .brand-mark { justify-content: center; }
-          .hero-subtitle { margin: 0 auto 32px; }
-          .social-proof { justify-content: center; }
-          .login-card { padding: 32px 24px; }
-          .feature-list { display: none; }
-        }
-
-        @media (max-width: 480px) {
-          .login-card { padding: 28px 20px; }
-          .security-badges { flex-wrap: wrap; gap: 10px; }
+          .left-col { order: 2; }
+          .right-col { order: 1; }
         }
       `}</style>
     </main>
   );
 }
 
+// ── Security Badge ──────────────────────────────────────────────────────────
+function SecBadge({ label }: { label: string }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 5,
+      padding: "5px 10px",
+      borderRadius: 6,
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.07)",
+    }}>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+           stroke="rgba(99,179,237,0.8)" strokeWidth="2.5" strokeLinecap="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <span style={{ fontSize: 11, color: "#475569", fontWeight: 500 }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// ── Google Icon ─────────────────────────────────────────────────────────────
 function GoogleIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+    <svg width="18" height="18" viewBox="0 0 24 24"
+         style={{ flexShrink: 0, position: "relative", zIndex: 1 }}>
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -512,3 +299,293 @@ function GoogleIcon() {
     </svg>
   );
 }
+
+// ── Styles ──────────────────────────────────────────────────────────────────
+const s: Record<string, React.CSSProperties> = {
+
+  root: {
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    position: "relative",
+    overflow: "hidden",
+    fontFamily: "'Sora', sans-serif",
+    background: "#050d1a",
+  },
+
+  canvas: {
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
+  },
+
+  // ── Navbar ──
+navbar: {
+  position: "relative",
+  zIndex: 20,
+  padding: "24px 52px 16px",
+  flexShrink: 0,
+},
+
+  // ── Grid ──
+  wrap: {
+    position: "relative",
+    zIndex: 10,
+    flex: 1,
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 64,
+    alignItems: "center",
+    maxWidth: 1100,
+    width: "100%",
+    margin: "0 auto",
+    padding: "32px 52px 60px",
+  },
+
+  // ── Left ──
+  left: {
+    animation: "rise 0.6s ease-out 0.1s both",
+  },
+
+  tag: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#60a5fa",
+    letterSpacing: "0.06em",
+    textTransform: "uppercase" as const,
+    marginBottom: 20,
+    padding: "6px 14px",
+    borderRadius: 999,
+    background: "rgba(96,165,250,0.08)",
+    border: "1px solid rgba(96,165,250,0.15)",
+  },
+
+  tagDot: {
+    width: 6, height: 6,
+    borderRadius: "50%",
+    background: "#60a5fa",
+    boxShadow: "0 0 6px #60a5fa",
+    animation: "fadeIn 1s ease infinite alternate",
+  },
+
+  h1: {
+    fontSize: "clamp(32px, 3.5vw, 50px)",
+    fontWeight: 800,
+    color: "#f1f5f9",
+    lineHeight: 1.1,
+    letterSpacing: "-1.5px",
+    marginBottom: 20,
+  },
+
+  grad: {
+    background: "linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    backgroundClip: "text",
+  },
+
+  sub: {
+    fontSize: 16,
+    color: "#64748b",
+    lineHeight: 1.75,
+    marginBottom: 32,
+    maxWidth: 400,
+  },
+
+  // Feature list — no cards, just clean checkmarks
+  list: {
+    listStyle: "none",
+    padding: 0,
+    margin: "0 0 36px",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 12,
+  },
+
+  listItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  check: {
+    width: 20, height: 20,
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+
+  listText: {
+    fontSize: 14,
+    color: "#94a3b8",
+    fontWeight: 500,
+  },
+
+  // Metrics — inline text, no boxes
+  metricsRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 24,
+    paddingTop: 28,
+    borderTop: "1px solid rgba(255,255,255,0.06)",
+  },
+
+  metricItem: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 3,
+  },
+
+  metricN: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: "#e2e8f0",
+    letterSpacing: "-0.5px",
+    lineHeight: 1,
+  },
+
+  metricL: {
+    fontSize: 11,
+    color: "#475569",
+    fontWeight: 500,
+  },
+
+  metricSep: {
+    width: 1,
+    height: 32,
+    background: "rgba(255,255,255,0.08)",
+  },
+
+  // ── Right ──
+  right: {
+    animation: "rise 0.6s ease-out 0.25s both",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 16,
+  },
+
+  card: {
+    background: "rgba(15,23,42,0.7)",
+    backdropFilter: "blur(32px)",
+    WebkitBackdropFilter: "blur(32px)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 20,
+    overflow: "hidden",
+    boxShadow: "0 40px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)",
+  },
+
+  cardAccent: {
+    height: 2,
+    background: "linear-gradient(90deg, #2563eb 0%, #7c3aed 50%, #06b6d4 100%)",
+  },
+
+  cardBody: {
+    padding: "40px 40px 36px",
+  },
+
+  cardHead: {
+    marginBottom: 32,
+  },
+
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: "#60a5fa",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.12em",
+    marginBottom: 10,
+  },
+
+  cardTitle: {
+    fontSize: 26,
+    fontWeight: 700,
+    color: "#f1f5f9",
+    letterSpacing: "-0.5px",
+    marginBottom: 8,
+  },
+
+  cardSub: {
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 1.6,
+  },
+
+  gBtn: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    width: "100%",
+    padding: "15px 20px",
+    background: "#ffffff",
+    color: "#0f172a",
+    fontSize: 15,
+    fontWeight: 600,
+    borderRadius: 12,
+    textDecoration: "none",
+    position: "relative" as const,
+    overflow: "hidden",
+    transition: "transform 0.15s ease, box-shadow 0.15s ease",
+    boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+    cursor: "pointer",
+  },
+
+  gBtnHover: {
+    transform: "translateY(-2px)",
+    boxShadow: "0 12px 36px rgba(0,0,0,0.5)",
+  },
+
+  sweep: {
+    position: "absolute" as const,
+    top: 0, left: "-100%",
+    width: "100%", height: "100%",
+    background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)",
+    animation: "sweep 3.5s ease-in-out infinite",
+    pointerEvents: "none" as const,
+  },
+
+  divider: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    margin: "24px 0",
+  },
+
+  divLine: {
+    flex: 1,
+    height: 1,
+    background: "rgba(255,255,255,0.06)",
+  },
+
+  divText: {
+    fontSize: 11,
+    color: "#1e293b",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.08em",
+    whiteSpace: "nowrap" as const,
+  },
+
+  secRow: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap" as const,
+  },
+
+  tos: {
+    fontSize: 12,
+    color: "#1e293b",
+    textAlign: "center" as const,
+    lineHeight: 1.7,
+  },
+
+  tosLink: {
+    color: "#3b82f6",
+    textDecoration: "none",
+  },
+};
