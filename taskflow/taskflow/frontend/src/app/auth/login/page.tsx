@@ -133,7 +133,7 @@ export default function LoginPage() {
       <div style={s.wrap}>
 
         {/* ── Left ── */}
-        <div style={s.left}>
+        <div style={s.left} className="login-left-col">
 
           {/* Eyebrow tag */}
           <div style={s.tag}>
@@ -189,7 +189,7 @@ export default function LoginPage() {
         </div>
 
         {/* ── Right ── */}
-        <div style={s.right}>
+        <div style={s.right} className="login-right-col">
           <div style={s.card}>
             <div style={s.cardAccent} />
             <div style={s.cardBody}>
@@ -241,27 +241,29 @@ export default function LoginPage() {
       </div>
 
       <style>{`
-        @keyframes sweep {
-          0%        { left: -100%; }
-          60%, 100% { left: 100%;  }
-        }
-        @keyframes rise {
-          from { opacity: 0; transform: translateY(18px); }
-          to   { opacity: 1; transform: translateY(0);    }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @media (max-width: 800px) {
-          .wrap-grid {
-            grid-template-columns: 1fr !important;
-            padding: 16px 24px 48px !important;
-          }
-          .left-col { order: 2; }
-          .right-col { order: 1; }
-        }
-      `}</style>
+  @keyframes sweep {
+    0%        { left: -100%; }
+    60%, 100% { left: 100%;  }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0);    }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* ── Mobile fixes ── */
+  @media (max-width: 640px) {
+    .login-left-col {
+      order: 2 !important;
+    }
+    .login-right-col {
+      order: 1 !important;
+    }
+  }
+`}</style>
     </main>
   );
 }
@@ -323,24 +325,24 @@ const s: Record<string, React.CSSProperties> = {
 navbar: {
   position: "relative",
   zIndex: 20,
-  padding: "24px 52px 16px",
+  padding: "24px 24px 0",
   flexShrink: 0,
 },
 
   // ── Grid ──
-  wrap: {
-    position: "relative",
-    zIndex: 10,
-    flex: 1,
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 64,
-    alignItems: "center",
-    maxWidth: 1100,
-    width: "100%",
-    margin: "0 auto",
-    padding: "32px 52px 60px",
-  },
+ wrap: {
+  position: "relative",
+  zIndex: 10,
+  flex: 1,
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+  gap: 40,
+  alignItems: "center",
+  maxWidth: 1100,
+  width: "100%",
+  margin: "0 auto",
+  padding: "24px 24px 48px",
+},
 
   // ── Left ──
   left: {
