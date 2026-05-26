@@ -269,7 +269,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Mobile top bar */}
         <header
-          className="lg:hidden flex items-center gap-3 px-4 h-14 border-b flex-shrink-0"
+          className="lg:hidden flex items-center gap-3 px-4 h-16 border-b flex-shrink-0"
           style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}
         >
           <button
@@ -283,7 +283,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <img
             src="/logo.png"
             alt="TaskFlow"
-            style={{ height: 36, width: "auto", objectFit: "contain" }}
+            style={{ height: 70, width: "auto", objectFit: "contain" }}
           />
 
           <div className="ml-auto">
