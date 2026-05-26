@@ -1,14 +1,10 @@
 "use client";
+import { Suspense } from "react";
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 
-/**
- * This page receives the OAuth redirect from the backend with:
- *   ?access_token=...&refresh_token=...
- * Stores them in sessionStorage and redirects to the dashboard.
- */
-export default function AuthCallbackPage() {
+function CallbackHandler() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
@@ -34,17 +30,40 @@ export default function AuthCallbackPage() {
   }, [searchParams, router]);
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900
-                     flex items-center justify-center">
+    <main className="min-h-screen flex items-center justify-center"
+          style={{ background: "linear-gradient(135deg, #020817, #0f172a)" }}>
       <div className="text-center">
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl
                         bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg mb-4">
-          <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+          <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24"
+               fill="none" stroke="white" strokeWidth="2">
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
           </svg>
         </div>
         <p className="text-slate-300 text-sm">Signing you in…</p>
       </div>
     </main>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg, #020817, #0f172a)" }}>
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl
+                          bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg mb-4">
+            <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24"
+                 fill="none" stroke="white" strokeWidth="2">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+          </div>
+          <p className="text-slate-300 text-sm">Loading…</p>
+        </div>
+      </main>
+    }>
+      <CallbackHandler />
+    </Suspense>
   );
 }
