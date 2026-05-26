@@ -1,37 +1,32 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { useNotifications } from "@/hooks/useTasks";
+import { useTasks, useNotifications } from "@/hooks/useTasks";
 import { getInitials } from "@/lib/utils";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import {
   LayoutDashboard, CheckSquare, Users, Bell, Settings,
-  LogOut, Plus, Menu, X,
+  LogOut, Plus, Menu, X, KanbanSquare, Calendar,
+  BarChart3, UserCircle,
 } from "lucide-react";
-import { useState } from "react";
 import toast from "react-hot-toast";
-import ThemeToggle from "@/components/ui/ThemeToggle";
-
-const NAV = [
-  { href: "/dashboard",              icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/dashboard/tasks",        icon: CheckSquare,     label: "My Tasks"  },
-  { href: "/dashboard/tasks/new",    icon: Plus,            label: "New Task", accent: true },
-  { href: "/dashboard/team",         icon: Users,           label: "Team"      },
-  { href: "/dashboard/settings",     icon: Settings,        label: "Settings"  },
-];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const { unreadCount } = useNotifications();
+  const { tasks } = useTasks();
   const router   = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Task count badges
+  const todoCount       = tasks.filter((t) => t.status === "todo").length;
+  const inProgressCount = tasks.filter((t) => t.status === "in_progress").length;
+
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace("/auth/login");
-    }
+    if (!isLoading && !isAuthenticated) router.replace("/auth/login");
   }, [isLoading, isAuthenticated, router]);
 
   if (isLoading) return <DashboardSkeleton />;
@@ -42,99 +37,169 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     toast.success("Signed out successfully");
   };
 
+  const isActive = (href: string) =>
+    href === "/dashboard"
+      ? pathname === href
+      : pathname.startsWith(href);
+
+  const NAV_SECTIONS = [
+    {
+      label: "Main",
+      items: [
+        { href: "/dashboard",             icon: LayoutDashboard, label: "Dashboard" },
+        { href: "/dashboard/tasks",       icon: CheckSquare,     label: "My Tasks",
+          badge: todoCount + inProgressCount > 0 ? todoCount + inProgressCount : null },
+        { href: "/dashboard/kanban",      icon: KanbanSquare,    label: "Kanban Board" },
+        { href: "/dashboard/calendar",    icon: Calendar,        label: "Calendar" },
+      ],
+    },
+    {
+      label: "Insights",
+      items: [
+        { href: "/dashboard/analytics",  icon: BarChart3,       label: "Analytics" },
+      ],
+    },
+    {
+      label: "Team",
+      items: [
+        { href: "/dashboard/team",       icon: Users,           label: "Team Members" },
+      ],
+    },
+  ];
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "var(--bg)" }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 z-20 bg-black/50 lg:hidden"
+             onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* ── Sidebar ──────────────────────────────────────────────── */}
-<aside
-  className={`fixed lg:static inset-y-0 left-0 z-30 w-60 border-r
-              flex flex-col shadow-sm transition-transform duration-200
-              ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
-  style={{ backgroundColor: "var(--sidebar-bg)", borderColor: "var(--sidebar-border)" }}
->
-        {/* Logo */}
-        {/* Logo */}
-<div className="flex items-center gap-3 px-5 h-16 border-b border-slate-100
-                dark:border-slate-700">
-  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700
-                  flex items-center justify-center shadow-sm flex-shrink-0">
-    <CheckSquare size={16} className="text-white" />
-  </div>
-  <span className="font-bold text-slate-900 dark:text-white text-lg tracking-tight">
-    TaskFlow
-  </span>
-  <div className="ml-auto flex items-center gap-1">
-    <ThemeToggle />
-    <button
-      className="ml-1 lg:hidden text-slate-400 hover:text-slate-600"
-      onClick={() => setSidebarOpen(false)}
-    >
-      <X size={18} />
-    </button>
-  </div>
-</div>
-        
-       
+      {/* ── Sidebar ─────────────────────────────────────────────── */}
+      <aside
+        className={`fixed lg:static inset-y-0 left-0 z-30 w-60 border-r
+                    flex flex-col shadow-sm transition-transform duration-200
+                    ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+        style={{ backgroundColor: "var(--sidebar-bg)", borderColor: "var(--sidebar-border)" }}
+      >
+        {/* Logo + theme toggle */}
+        <div className="flex items-center gap-3 px-4 h-16 border-b flex-shrink-0"
+             style={{ borderColor: "var(--border)" }}>
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700
+                          flex items-center justify-center shadow-sm flex-shrink-0">
+            <CheckSquare size={16} className="text-white" />
+          </div>
+          <span className="font-bold text-lg tracking-tight" style={{ color: "var(--text)" }}>
+            TaskFlow
+          </span>
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
+            <button className="lg:hidden p-1.5 rounded-md transition-colors"
+                    style={{ color: "var(--text-muted)" }}
+                    onClick={() => setSidebarOpen(false)}>
+              <X size={16} />
+            </button>
+          </div>
+        </div>
 
-        {/* Nav */}
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-          {NAV.map(({ href, icon: Icon, label, accent }) => {
-            const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-            return (
-              <Link
-                key={href}
-                href={href}
+        {/* New Task button */}
+        <div className="px-3 pt-3">
+          <Link href="/dashboard/tasks/new"
                 onClick={() => setSidebarOpen(false)}
-                className={`nav-item ${active ? "active" : ""} ${accent ? "mt-2" : ""}`}
-              >
-                <Icon size={17} className="flex-shrink-0" />
-                <span>{label}</span>
-                {accent && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500" />
+                className="btn-primary w-full py-2 text-sm justify-center">
+            <Plus size={15} /> New Task
+          </Link>
+        </div>
+
+        {/* Nav sections */}
+        <nav className="flex-1 p-3 space-y-4 overflow-y-auto mt-2">
+          {NAV_SECTIONS.map(({ label, items }) => (
+            <div key={label}>
+              <p className="text-[10px] font-bold uppercase tracking-widest px-3 mb-1.5"
+                 style={{ color: "var(--text-muted)" }}>
+                {label}
+              </p>
+              <div className="space-y-0.5">
+                {items.map(({ href, icon: Icon, label: itemLabel, badge }) => (
+                  <Link key={href} href={href}
+                        onClick={() => setSidebarOpen(false)}
+                        className={`nav-item ${isActive(href) ? "active" : ""}`}>
+                    <Icon size={16} className="flex-shrink-0" />
+                    <span className="flex-1">{itemLabel}</span>
+                    {badge != null && badge > 0 && (
+                      <span className="bg-blue-600 text-white text-[10px] font-bold
+                                       px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                        {badge > 99 ? "99+" : badge}
+                      </span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Account section */}
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest px-3 mb-1.5"
+               style={{ color: "var(--text-muted)" }}>
+              Account
+            </p>
+            <div className="space-y-0.5">
+              <Link href="/dashboard/notifications"
+                    onClick={() => setSidebarOpen(false)}
+                    className={`nav-item ${isActive("/dashboard/notifications") ? "active" : ""}`}>
+                <Bell size={16} className="flex-shrink-0" />
+                <span className="flex-1">Notifications</span>
+                {unreadCount > 0 && (
+                  <span className="bg-blue-600 text-white text-[10px] font-bold
+                                   px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
                 )}
               </Link>
-            );
-          })}
-
-          {/* Notifications */}
-          <Link
-            href="/dashboard/notifications"
-            onClick={() => setSidebarOpen(false)}
-            className={`nav-item ${pathname === "/dashboard/notifications" ? "active" : ""}`}
-          >
-            <Bell size={17} />
-            <span>Notifications</span>
-            {unreadCount > 0 && (
-              <span className="ml-auto bg-blue-600 text-white text-[10px] font-bold
-                               px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
-          </Link>
+              <Link href="/dashboard/profile"
+                    onClick={() => setSidebarOpen(false)}
+                    className={`nav-item ${isActive("/dashboard/profile") ? "active" : ""}`}>
+                <UserCircle size={16} className="flex-shrink-0" />
+                <span>Profile</span>
+              </Link>
+              <Link href="/dashboard/settings"
+                    onClick={() => setSidebarOpen(false)}
+                    className={`nav-item ${isActive("/dashboard/settings") ? "active" : ""}`}>
+                <Settings size={16} className="flex-shrink-0" />
+                <span>Settings</span>
+              </Link>
+            </div>
+          </div>
         </nav>
 
         {/* User footer */}
-        <div className="p-3 border-t" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-3 px-2 py-2">
-            <Avatar name={user?.full_name ?? ""} src={user?.avatar_url} size="sm" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">{user?.full_name}</p>
-              <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+        <div className="p-3 border-t flex-shrink-0"
+             style={{ borderColor: "var(--border)" }}>
+          <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600
+                            flex items-center justify-center text-white text-xs font-bold
+                            flex-shrink-0 overflow-hidden">
+              {user?.avatar_url
+                ? <img src={user.avatar_url} alt={user.full_name}
+                       className="w-full h-full object-cover" />
+                : getInitials(user?.full_name ?? "")
+              }
             </div>
-            <button
-              onClick={handleLogout}
-              title="Sign out"
-              className="p-1.5 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50
-                         transition-colors"
-            >
-              <LogOut size={15} />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold truncate" style={{ color: "var(--text)" }}>
+                {user?.full_name}
+              </p>
+              <p className="text-[10px] truncate" style={{ color: "var(--text-muted)" }}>
+                {user?.email}
+              </p>
+            </div>
+            <button onClick={handleLogout} title="Sign out"
+                    className="p-1.5 rounded-md transition-colors flex-shrink-0"
+                    style={{ color: "var(--text-muted)" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
+              <LogOut size={14} />
             </button>
           </div>
         </div>
@@ -143,15 +208,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── Main area ─────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile top bar */}
-        <header className="lg:hidden flex items-center gap-3 px-4 h-14 border-b"
-        style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}>
-          <button
-            className="p-2 rounded-md text-slate-500 hover:bg-slate-100"
-            onClick={() => setSidebarOpen(true)}
-          >
+        <header className="lg:hidden flex items-center gap-3 px-4 h-14 border-b flex-shrink-0"
+                style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}>
+          <button className="p-2 rounded-md transition-colors"
+                  style={{ color: "var(--text-muted)" }}
+                  onClick={() => setSidebarOpen(true)}>
             <Menu size={20} />
           </button>
-          <span className="font-bold text-slate-900">TaskFlow</span>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-blue-700
+                            flex items-center justify-center">
+              <CheckSquare size={12} className="text-white" />
+            </div>
+            <span className="font-bold" style={{ color: "var(--text)" }}>TaskFlow</span>
+          </div>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
@@ -162,35 +235,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 
-// ── Avatar component ───────────────────────────────────────────────────────
-function Avatar({
-  name, src, size = "md",
-}: {
-  name: string; src?: string | null; size?: "sm" | "md" | "lg";
-}) {
-  const sizes = { sm: "w-8 h-8 text-xs", md: "w-9 h-9 text-sm", lg: "w-10 h-10 text-sm" };
-  return (
-    <div className={`${sizes[size]} rounded-full bg-gradient-to-br from-blue-400 to-blue-600
-                     flex items-center justify-center text-white font-semibold flex-shrink-0
-                     overflow-hidden`}>
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={name} className="w-full h-full object-cover" />
-      ) : (
-        getInitials(name)
-      )}
-    </div>
-  );
-}
-
-// ── Loading skeleton ───────────────────────────────────────────────────────
 function DashboardSkeleton() {
   return (
-    <div className="flex h-screen bg-slate-50">
-      <div className="w-60 bg-white border-r border-slate-200 p-4 space-y-3">
+    <div className="flex h-screen" style={{ backgroundColor: "var(--bg)" }}>
+      <div className="w-60 border-r p-4 space-y-3 flex-shrink-0"
+           style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}>
         <div className="skeleton h-8 w-32 mb-6" />
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="skeleton h-9 w-full rounded-lg" />
+        <div className="skeleton h-9 w-full rounded-lg" />
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="skeleton h-8 w-full rounded-lg" />
         ))}
       </div>
       <div className="flex-1 p-6 space-y-6">

@@ -117,6 +117,39 @@ def _task_completed_html(task: dict, completed_by: str) -> str:
 # ── SMTP sender ────────────────────────────────────────────────────────────
 
 def _send(to: str, subject: str, html: str) -> bool:
+    sender   = os.getenv("GMAIL_SENDER", "")
+    password = os.getenv("GMAIL_APP_PASSWORD", "")
+
+   
+
+    if not sender or not password:
+        print("❌ Missing Gmail credentials in .env!")
+        return False
+
+    msg = MIMEMultipart("alternative")
+    msg["From"]    = f"TaskFlow <{sender}>"
+    msg["To"]      = to
+    msg["Subject"] = f"[TaskFlow] {subject}"
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        print("🔌 Connecting to Gmail SMTP...")
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
+            print("🔐 Logging in...")
+            server.login(sender, password)
+            print("📤 Sending...")
+            server.sendmail(sender, to, msg.as_string())
+        print(f"✅ Email sent successfully to {to}")
+        return True
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"❌ AUTH FAILED: {e}")
+        print("   → Check GMAIL_APP_PASSWORD is correct")
+        print("   → Make sure 2-Step Verification is ON")
+    except smtplib.SMTPException as e:
+        print(f"❌ SMTP ERROR: {e}")
+    except Exception as e:
+        print(f"❌ GENERAL ERROR: {type(e).__name__}: {e}")
+    return False
     sender = os.getenv("GMAIL_SENDER", "")
     password = os.getenv("GMAIL_APP_PASSWORD", "")
     if not sender or not password:

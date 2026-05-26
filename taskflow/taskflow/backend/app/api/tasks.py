@@ -254,6 +254,7 @@ def delete_task(task_id: str):
 
 def _trigger_assignment_email(sb, task: dict, assigner_id: str, assignee_id: str) -> None:
     def _send():
+        
         try:
             assigner = sb.table("users").select("full_name").eq("id", assigner_id).single().execute().data
             assignee = sb.table("users").select("email,full_name").eq("id", assignee_id).single().execute().data
